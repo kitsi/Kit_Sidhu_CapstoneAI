@@ -1,0 +1,1 @@
+"""Dataclasses shared between components."""

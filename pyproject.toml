@@ -1,0 +1,39 @@
+[project]
+name = "phish-assistant"
+version = "0.1.0"
+description = "Explainable AI phishing analysis assistant: local classifier, rule checks, and an Ollama LLM that explains the evidence."
+readme = "README.md"
+authors = [
+    { name = "KS", email = "46537629+kitsi@users.noreply.github.com" }
+]
+# torch 2.2.2 is the last build with Intel-macOS wheels, and it ships cp312 at most.
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy<2",
+    "ollama>=0.6.3",
+    "streamlit>=1.66.0",
+    "torch>=2.2.2",
+    "transformers[torch]>=5.0.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Force the lockfile to include wheels that install on the Intel Mac used for development.
+required-environments = ["sys_platform == 'darwin' and platform_machine == 'x86_64'"]
+
+[tool.ruff]
+target-version = "py312"
+# The plan's code examples are teaching snippets, not project code.
+extend-exclude = ["implementation_plan.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+]
