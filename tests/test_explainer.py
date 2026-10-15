@@ -111,6 +111,9 @@ def test_invalid_structure_returns_fallback() -> None:
         "It is safe to click the link.",
         "This is definitely legitimate.",
         "We guarantee this is fine.",
+        "The email appears to be a legitimate newsletter.",
+        "This message seems genuine.",
+        "It is likely authentic.",
     ],
 )
 def test_forbidden_claims_trigger_fallback(claim: str) -> None:
@@ -182,3 +185,53 @@ def test_prompt_uses_readable_category_names() -> None:
     listed = prompt_inputs(assessment, PHISH, indicators)["indicator_list"]
     assert 'credential request: "Verify your identity"' in listed
     assert "credential_request" not in listed
+
+
+def test_url_evidence_without_url_findings_triggers_fallback() -> None:
+    email = EmailInput("Library news", "Our author talk is on Thursday evening.")
+    assessment, indicators = analyze(email, p=0.0)
+    invented = LLMExplanation(
+        summary="Few warning signs were found.",
+        evidence=[Evidence(indicator="URL finding", why_it_matters="Looks normal.")],
+        recommended_actions=["Report anything unusual to IT."],
+        limitations="Automated checks can miss phishing.",
+    )
+    result = explain(assessment, email, indicators, chain=fake_chain(invented))
+    assert result.is_fallback is True
+
+
+def test_url_evidence_allowed_when_url_findings_exist() -> None:
+    assessment, indicators = analyze(PHISH)  # PHISH has a raw-IP http link
+    output = good_output()
+    output.evidence.append(Evidence(indicator="link", why_it_matters="Raw IP address."))
+    result = explain(assessment, PHISH, indicators, chain=fake_chain(output))
+    assert result.is_fallback is False
+
+
+def test_link_phrase_under_other_category_is_allowed() -> None:
+    email = EmailInput("Hi", "Dear user, click the link to verify your identity.")
+    assessment, indicators = analyze(email)  # no URL given, so no URL findings
+    output = LLMExplanation(
+        summary="This message shows signs of phishing.",
+        evidence=[
+            Evidence(
+                indicator="suspicious language",
+                why_it_matters="'Click the link' pushes you to act without checking.",
+            )
+        ],
+        recommended_actions=["Don't click anything; report it to IT."],
+        limitations="Automated checks can miss phishing.",
+    )
+    result = explain(assessment, email, indicators, chain=fake_chain(output))
+    assert result.is_fallback is False
+
+
+def test_general_legitimate_statement_is_allowed() -> None:
+    assessment, indicators = analyze(PHISH)
+    output = good_output()
+    output.evidence[
+        1
+    ].why_it_matters = "Legitimate companies don't ask for your password by email."
+    output.limitations = "It can flag legitimate mail or miss well-written phishing."
+    result = explain(assessment, PHISH, indicators, chain=fake_chain(output))
+    assert result.is_fallback is False

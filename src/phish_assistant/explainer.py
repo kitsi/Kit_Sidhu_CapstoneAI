@@ -50,6 +50,11 @@ _FORBIDDEN = re.compile(
     r"\b(?:is|looks|seems|appears|it's)\s+(?:completely\s+|totally\s+|probably\s+)?safe\b"
     r"|\bsafe\s+to\s+(?:open|click|trust|use|reply)\b"
     r"|\bdefinitely\s+(?:legitimate|malicious)\b"
+    # Vouching for the email ("appears to be a legitimate newsletter"). General
+    # statements like "legitimate companies don't ask..." have no verb and pass.
+    r"|\b(?:is|looks|seems|appears|it's)(?:\s+to\s+be)?\s+(?:an?\s+)?"
+    r"(?:completely\s+|totally\s+|probably\s+|likely\s+)?"
+    r"(?:legitimate|genuine|authentic|verified)\b"
     r"|\bguarantee[ds]?\b",
     re.IGNORECASE,
 )
@@ -81,6 +86,10 @@ _LIMITATIONS = (
     "This is an automated risk assessment: it can miss well-written phishing and "
     "can flag legitimate mail, so use your own judgment."
 )
+
+# URL findings from url_checks.py all start with one of these words.
+_URL_REASON_PREFIXES = ("Link", "Domain")
+_URL_WORD = re.compile(r"\b(?:url|link|domain|https?)\b", re.IGNORECASE)
 
 _chain: Any = None  # built on first use, then reused
 
@@ -123,8 +132,9 @@ def fallback_explanation(
         Evidence(indicator=_label(c), why_it_matters=_CATEGORY_WHY[c])
         for c in categories
     ]
-    url_reasons = [r for r in assessment.reasons if r.startswith(("Link", "Domain"))]
-    evidence += [Evidence(indicator=r, why_it_matters=_URL_WHY) for r in url_reasons]
+    evidence += [
+        Evidence(indicator=r, why_it_matters=_URL_WHY) for r in _url_reasons(assessment)
+    ]
     found = "the evidence listed below" if evidence else "the classifier score alone"
     summary = (
         f"This email was rated {assessment.level} risk based on {found}. "
@@ -137,6 +147,11 @@ def fallback_explanation(
         limitations=_LIMITATIONS,
         is_fallback=True,
     )
+
+
+def _url_reasons(assessment: RiskAssessment) -> list[str]:
+    """Return the URL findings among the scoring reasons."""
+    return [r for r in assessment.reasons if r.startswith(_URL_REASON_PREFIXES)]
 
 
 def _all_text(output: LLMExplanation) -> str:
@@ -156,13 +171,29 @@ def _unsupported_categories(output: LLMExplanation, allowed: set[str]) -> set[st
     }
 
 
-def passes_safety_check(output: LLMExplanation, indicators: list[Indicator]) -> bool:
-    """Reject forbidden claims and evidence for categories that weren't found."""
+def _names_url_evidence(output: LLMExplanation) -> bool:
+    """Return True if any evidence item is named as a URL/link/domain finding.
+
+    Only the evidence *name* is checked, so explaining a phrase like
+    "Click the link" under another category is still allowed.
+    """
+    return any(_URL_WORD.search(e.indicator) for e in output.evidence)
+
+
+def passes_safety_check(
+    output: LLMExplanation,
+    indicators: list[Indicator],
+    has_url_findings: bool = False,
+) -> bool:
+    """Reject forbidden claims and evidence that wasn't actually found."""
     if _FORBIDDEN.search(_all_text(output)):
         log.warning("Explanation rejected: forbidden claim")
         return False
     if _unsupported_categories(output, {i.category for i in indicators}):
         log.warning("Explanation rejected: unsupported indicator category")
+        return False
+    if not has_url_findings and _names_url_evidence(output):
+        log.warning("Explanation rejected: URL evidence without URL findings")
         return False
     return True
 
@@ -188,6 +219,7 @@ def explain(
     except Exception as exc:  # noqa: BLE001 - any LLM failure must degrade, not crash
         log.warning("Explanation unavailable: %s", type(exc).__name__)
         return fallback_explanation(assessment, indicators)
-    if not passes_safety_check(output, indicators):
+    has_urls = bool(_url_reasons(assessment))
+    if not passes_safety_check(output, indicators, has_urls):
         return fallback_explanation(assessment, indicators)
     return Explanation(**output.model_dump())
