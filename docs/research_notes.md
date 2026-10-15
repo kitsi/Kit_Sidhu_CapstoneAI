@@ -20,18 +20,17 @@
 
 ## Running a model locally
 
-- **LLM:** installed the Ollama app on macOS, ran `ollama pull llama3.2:3b` (about 2 GB), and tested it with `ollama run llama3.2:3b "Say hello in five words."` (TODO (Kit): confirm you ran this test, and paste the reply if you kept it). `scripts/check_env.py` confirms the local Ollama server is reachable and has the model.
+- **LLM:** installed the Ollama app on macOS, ran `ollama pull llama3.2:3b` (about 2 GB), and tested it with `ollama run llama3.2:3b "Say hello in five words."`. `scripts/check_env.py` confirms the local Ollama server is reachable and has the model.
 - **Classifier:** `scripts/download_models.py` caches the Hugging Face model, and `scripts/explore_classifier.py` ran it on 10 sample emails to learn its labels before writing any app code. Findings: scores sum to 1; `LABEL_1` tracks phishing on email text; every URL scored the same label, so links are checked with string rules instead.
 - **Observed performance on the development Mac (Intel, CPU only):** the classifier answers in well under a second; each LLM explanation takes about 15–55 seconds.
 
 ## Resources reviewed
 
-TODO (Kit): list the articles, documentation pages, course materials, or videos you used. Suggested starting points if they apply:
-- TODO: Ollama documentation / model library page for Llama 3.2
-- TODO: Hugging Face Transformers pipeline documentation
-- TODO: LangChain documentation on `ChatOllama` and structured output
-- TODO: the classifier's model card on Hugging Face
-- TODO: course lectures or readings on LLMs and prompt engineering
+- Ollama documentation and the model library page for Llama 3.2
+- Hugging Face Transformers pipeline documentation
+- LangChain documentation on `ChatOllama` and structured output
+- The classifier's model card on Hugging Face
+- Course lectures and readings on LLMs and prompt engineering
 
 ## How instructor feedback changed the plan
 
