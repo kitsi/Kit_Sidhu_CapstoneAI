@@ -14,7 +14,7 @@ from phish_assistant.explainer import (
     fallback_explanation,
 )
 from phish_assistant.models import ClassifierResult, EmailInput
-from phish_assistant.prompts import body_excerpt
+from phish_assistant.prompts import body_excerpt, prompt_inputs
 from phish_assistant.rules import find_indicators
 from phish_assistant.scoring import assess_risk
 from phish_assistant.url_checks import url_findings
@@ -175,3 +175,10 @@ def test_prompt_delimits_email_and_survives_braces_and_tags() -> None:
 def test_body_excerpt_is_limited() -> None:
     assert body_excerpt("a" * 50, limit=10) == "a" * 10 + " [...]"
     assert body_excerpt("short", limit=10) == "short"
+
+
+def test_prompt_uses_readable_category_names() -> None:
+    assessment, indicators = analyze(PHISH)
+    listed = prompt_inputs(assessment, PHISH, indicators)["indicator_list"]
+    assert 'credential request: "Verify your identity"' in listed
+    assert "credential_request" not in listed
