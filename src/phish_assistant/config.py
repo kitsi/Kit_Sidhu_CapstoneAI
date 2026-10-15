@@ -26,3 +26,21 @@ CATEGORY_WEIGHTS = {
     "suspicious_language": 1,
 }
 
+# URL text checks (url_checks.py). Matching is on the hostname, so subdomains of
+# a shortener (e.g. "www.bit.ly") also count.
+URL_SHORTENERS = frozenset({
+    "bit.ly",
+    "tinyurl.com",
+    "t.co",
+    "goo.gl",
+    "ow.ly",
+    "is.gd",
+    "buff.ly",
+    "rebrand.ly",
+    "cutt.ly",
+    "tiny.cc",
+    "shorturl.at",
+})
+# Flag a host with more subdomains than this, not counting a leading "www.".
+# "accounts.example.com" has 1; "bank.secure-verify.example.com" has 2.
+MAX_SUBDOMAINS = 1
