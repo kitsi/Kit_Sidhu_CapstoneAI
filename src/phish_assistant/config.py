@@ -14,3 +14,15 @@ CLASSIFIER_MAX_TOKENS = 512
 MAX_SUBJECT_CHARS = 500
 MAX_BODY_CHARS = 10_000
 MAX_URL_CHARS = 2_048
+
+# Points each indicator category contributes to the risk score (scoring.py).
+# Requests for credentials or money are the core of a phishing attack, so they
+# weigh most; pressure tactics next; generic suspicious wording least.
+CATEGORY_WEIGHTS = {
+    "credential_request": 3,
+    "payment_request": 3,
+    "threat": 2,
+    "urgency": 2,
+    "suspicious_language": 1,
+}
+

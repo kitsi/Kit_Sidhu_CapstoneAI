@@ -41,3 +41,33 @@ Both use account/order language that phishing emails imitate. This is why the ri
 - Acts as the boundary for untrusted input: trims whitespace and rejects empty, oversized, or non-URL input with plain-English `ValueError` messages the UI can show directly.
 - Strips HTML with Python's built-in parser, dropping script/style contents but keeping the targets of hidden `<a href>` links, where phishing links usually hide.
 - Finds `http(s)://` and `www.` links in the body as plain text only; nothing is ever opened or resolved.
+
+## Step 6: Rules and URL checks
+
+**Results on the 10 eval samples.** Every phishing sample fired 3–4 indicator categories (phish-01 also had no-HTTPS + raw-IP URL findings; phish-02 subdomains; phish-03 the `@` trick; phish-05 a shortener). No legitimate sample fired any indicator or URL finding, including the password reset and order confirmation the classifier misread.
+
+**Caveat (be upfront about this).** The patterns were written from these same 5 phishing samples, so a perfect result here is expected and overstates real-world performance. Rewording ("verify your login info") can evade them. New, unseen samples would be the honest test.
+
+**Decisions.**
+- Category weights (config.py): credential_request 3, payment_request 3, threat 2, urgency 2, suspicious_language 1. Asking for credentials or money is the actual attack; pressure and odd wording only support it.
+- Subdomain threshold: flag more than 1 subdomain (ignoring `www.`). Known false-positive risk: two-part country domains like `mail.example.co.uk`, since there's no offline public-suffix list.
+- Overlapping matches in the same category count once; overlaps across categories are kept ("Confirm your details now" is both urgency and a credential request).
+
+## How rules.py works
+
+- Five categories of regex patterns (urgency, threat, credential request, payment request, suspicious language), case-insensitive with word boundaries so "act now" can't match inside "contact now".
+- Returns each match with its category, exact text, and character position, so the UI can show which phrase triggered which indicator.
+- When two patterns in the same category hit the same words, only one is kept, so a phrase isn't double-counted in the score.
+
+## How url_checks.py works
+
+- Reads the link purely as text with Python's `urlsplit`; it never opens, fetches, or resolves anything (a test checks the module contains no network code).
+- Flags six patterns: no HTTPS, a raw IP address, punycode look-alike domains, the `@` trick that hides the real destination, known URL shorteners, and too many subdomains.
+- A malformed link becomes a finding instead of crashing the analysis.
+
+### Presentation talking points
+
+- **"Why rules if you have a classifier?"** Rules are transparent: they point at the exact phrase ("gift cards", "legal action") and explain *why*, which is the teaching goal. They also fired nothing on the 2 legitimate emails the classifier got wrong, which is what lets scoring pull those back down.
+- **"Why are credential and payment requests weighted highest?"** They're what the attacker actually wants; urgency and threats are just the pressure used to get it.
+- **"How do you analyze links safely?"** String parsing only. The app never visits a link, so analyzing a malicious URL can't harm the user.
+- **Honest limitation:** patterns came from the same samples they were tested on, and rewording can evade them.
