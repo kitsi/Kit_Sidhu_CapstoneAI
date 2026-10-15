@@ -195,3 +195,27 @@ Override: a credential request plus any URL finding is at least Medium.
 5. Only if over-confident wording persists: add it to the safety post-check.
 
 **How to measure.** Score 3 explanations (rubric: faithful, clear, actionable, safe; 0–2 each) *before* the change, apply it, rerun the same 3 samples, score again, and record both in `docs/evaluation_results.md`. Commit the change separately, e.g. `fix(prompts): ask for evidence-based wording and readable labels`.
+
+## Step 10: Security review
+
+Reviewed all code (`app.py`, `src/`, `scripts/`, `eval/`) against the hard rules in CLAUDE.md, then the app's runtime settings.
+
+**Code: no violations found.**
+| Rule | Result |
+|---|---|
+| Never fetch/open/resolve URLs | No network libraries anywhere in our code; `url_checks.py` uses `urlsplit` only, and a test fails if network code is ever added. The only HTTP call is LangChain → Ollama on `127.0.0.1` (local). |
+| Escape email text / no unsafe HTML | No `unsafe_allow_html`, `st.html`, or components. The one `st.markdown` (`app.py`, category label) uses fixed category names from the code, never email text. Email and LLM text use `st.text`. |
+| Never log or store email content | Logs contain stage timings and error *types* only (`pipeline.py`, `explainer.py`, `app.py`). Nothing is written to disk; the email exists only in the browser session's memory. Scripts print sample ids and scores, not email text. |
+| LLM never sets the risk level | `RiskAssessment` is created only in `scoring.py`. The explainer reads `assessment.level` to describe it and returns a separate `Explanation`; the UI shows `report.assessment.level`. |
+
+**Runtime: 3 findings, fixed with `.streamlit/config.toml`.**
+1. *Usage statistics:* Streamlit sends anonymous usage stats to Streamlit by default. No email content, but it contradicts "nothing leaves the machine." → `gatherUsageStats = false`.
+2. *Error details:* by default Streamlit shows full tracebacks and exception messages in the browser for any uncaught error; a message could contain email text. The analysis itself already catches errors, but the report-rendering code doesn't. → `showErrorDetails = "none"` (generic message in the browser).
+3. *Network exposure:* by default the app listens on all network interfaces, so anyone on the same Wi-Fi could open it at the "Network URL." → `address = "localhost"`.
+
+**Informational (not changed).** On startup, `transformers` contacts the Hugging Face Hub to check for model updates, even when the model is cached (we saw an "unauthenticated requests to the HF Hub" warning). It sends only the public model id, never email content. To run fully offline after the first download, start the app with `HF_HUB_OFFLINE=1`; mention this in the README (Step 12).
+
+### Presentation talking points
+
+- **"Is the email private?"** Yes: the classifier and the LLM both run on this computer, nothing is logged or saved, usage stats are off, and the app only accepts connections from this computer.
+- **"How did you check?"** A rule-by-rule review against the project's hard rules (network, HTML, logging, who sets the risk level), plus a test that fails if network code is ever added to the URL checker.

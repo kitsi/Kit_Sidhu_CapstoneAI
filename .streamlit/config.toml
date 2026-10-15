@@ -1,0 +1,14 @@
+# Privacy and safety settings for the phishing assistant (see docs/notes.md, Step 10).
+
+[server]
+# Only this computer can open the app; other devices on the network can't.
+address = "localhost"
+
+[browser]
+# Don't send anonymous usage statistics to Streamlit; nothing leaves the machine.
+gatherUsageStats = false
+
+[client]
+# Never show tracebacks or exception messages (which could contain email text)
+# in the browser; users see a generic message instead.
+showErrorDetails = "none"
