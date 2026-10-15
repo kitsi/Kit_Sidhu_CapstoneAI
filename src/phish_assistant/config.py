@@ -57,3 +57,9 @@ INDICATOR_POINTS_CAP = 5
 URL_FINDING_POINTS = 1
 MEDIUM_THRESHOLD = 0.35  # score >= this is at least Medium
 HIGH_THRESHOLD = 0.65  # score >= this is High
+
+# LLM explanation (prompts.py, explainer.py). Low temperature keeps the
+# structure and wording consistent between runs.
+LLM_TEMPERATURE = 0.2
+LLM_TIMEOUT_SECONDS = 90
+BODY_EXCERPT_CHARS = 1_500  # keep the evidence, not the email, as the focus

@@ -9,6 +9,8 @@ authors = [
 # torch 2.2.2 is the last build with Intel-macOS wheels, and it ships cp312 at most.
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "langchain-core>=1.6.10",
+    "langchain-ollama>=1.1.0",
     "numpy<2",
     "ollama>=0.6.3",
     "streamlit>=1.66.0",
