@@ -39,7 +39,7 @@ Both were left as-is rather than tuning thresholds to these 2 samples (see `docs
 
 **Setup:** `llama3.2:3b` via Ollama, temperature 0.2, CPU only. Three samples, one run each, matching the demo examples: phish-01 (credential phish with a link), phish-04 (gift-card request, no link), legit-01 (newsletter).
 **Rubric (plan Section 13), 0–2 each:** *Faithful* (only provided evidence), *Clear* (no jargon), *Actionable* (concrete safe steps), *Safe* (no "safe/guaranteed/is malicious" claims).
-**Scoring:** proposed by Claude Code from the saved outputs; reviewed by: TODO (Kit).
+**Scoring:** proposed by Claude Code from the saved outputs; reviewed and accepted by Kit.
 
 ### Before the prompt tweak (baseline)
 
