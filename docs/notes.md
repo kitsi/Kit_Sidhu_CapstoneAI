@@ -146,3 +146,34 @@ Override: a credential request plus any URL finding is at least Medium.
 - **"Why LangChain?"** It's the one part of the app that's actually a chain: prompt → model → structured output. LangChain replaces hand-written JSON parsing and validation with a Pydantic schema. The classifier, rules, and scoring stay plain Python because they're deterministic and gain nothing from orchestration.
 - **"Can an attacker trick the LLM?"** Three layers: the LLM never sets the risk level; the email is fenced off as untrusted data; and the output is checked for "safe"/"guaranteed" claims. In the live test the model ignored the injection anyway.
 - **"What if the LLM is down?"** The user still gets the risk level, evidence, and safe next steps from a template. The LLM improves the explanation; it's never a single point of failure.
+
+## Step 9: Pipeline and Streamlit UI
+
+**Decisions.**
+- *Fatal vs degraded:* if the classifier fails, the analysis stops with a clear message (no risk level is possible without it). If the LLM fails, the user still gets the full report with the template explanation.
+- *No HTML highlighting (cut for time):* matched phrases are listed under their category instead, and `unsafe_allow_html` is never used.
+- *Safe rendering:* everything that comes from the email or the LLM is shown with `st.text`, which does no Markdown or HTML parsing. So `<script>` can't run, and a Markdown link like `[click](http://evil.example)` in an email or in the LLM's output shows as plain text, never as a clickable link. Only fixed labels written in the code use Markdown.
+- *HTML in the body:* validation strips tags and drops `<script>` contents before analysis, so a body that is only `<script>alert(1)</script>` gets "The message has no readable text after removing HTML."
+- *Spinner text:* "The AI explanation runs locally on your computer and can take up to a minute", since explanations take 40–55 s on this Mac.
+- *Low risk wording:* "Low risk: few warning signs found. This doesn't mean the email is safe." The app never calls an email safe.
+- *Logging:* only stage timings (`stage=explain ms=44133`) and error *types*. Unexpected errors are logged by type only, because a full traceback could include email text.
+
+**Verified (headless Streamlit AppTest).** Empty body → friendly error; script-only body → friendly error; script mixed with phishing text → analyzed, nothing from the script rendered; all 3 sidebar examples fill the form and produce a report; classifier failure → clear message, no stack trace. Full real run (gift-card example, real classifier + llama3.2:3b): High risk, phrases grouped by category, real LLM explanation in 44 s.
+
+## How pipeline.py works
+
+- One function, `analyze()`, runs every step in order: classifier → rules → URL checks → scoring → LLM explanation, and returns one report object for the UI.
+- The classifier and explainer are passed in as parameters, so tests swap in instant fake versions and run in milliseconds without loading any models (dependency injection).
+- It decides what's fatal and what isn't: no classifier means no risk level, so that stops with a clear message; no LLM just means the template explanation.
+
+## How app.py works
+
+- A Streamlit form collects subject, body, and an optional link; the sidebar can load 3 example emails. It only calls `validate_input()` and `pipeline.analyze()`; all logic lives in `src/`.
+- The classifier loads once per server with `st.cache_resource`, and a spinner warns the AI explanation can take up to a minute.
+- The report shows the risk level as text plus icon (not color alone), the reasons, matched phrases by category, link warnings, the explanation and next steps, and a disclaimer, with all email and AI text shown as plain text.
+
+### Presentation talking points
+
+- **"How do you stop the email from attacking the app itself?"** HTML is stripped on input, and everything from the email or the AI is displayed as plain text: no HTML rendering, no clickable links.
+- **"What does the user see if the AI is slow or down?"** A spinner while it works; if Ollama is down, the same risk level and evidence with a standard explanation and a note saying so.
+- **"Why is the UI so thin?"** Every decision is in tested Python modules; the UI only collects input and displays the report, so the core is tested without a browser.

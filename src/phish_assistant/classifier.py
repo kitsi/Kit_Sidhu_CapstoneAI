@@ -30,6 +30,11 @@ def _get_classifier() -> Any:
     return _classifier
 
 
+def load_model() -> None:
+    """Load the classifier now (e.g. at app start) instead of on the first email."""
+    _get_classifier()
+
+
 def email_text(email: EmailInput) -> str:
     """Combine subject and body into the text the classifier sees."""
     return f"{email.subject}\n\n{email.body}" if email.subject else email.body
