@@ -180,7 +180,13 @@ Override: a credential request plus any URL finding is at least Medium.
 
 ## Planned follow-up: prompt tweak (do in Step 11)
 
-**Status:** planned, not done. Do it inside Step 11's LLM rubric scoring, which already asks for "one weak example with what you changed" (plan Section 13).
+**Status:** done in Step 11. Rubric average 5.33 → 5.67/8: phishing explanations improved (5.5 → 7.0), but the legitimate newsletter got worse (5 → 3) because the model invented a URL finding. Two post-check fixes followed: invented URL evidence and "appears to be legitimate" wording now trigger the fallback, so Low-risk emails often show the template explanation (intended). Full before/after tables and the weak example are in `docs/evaluation_results.md`.
+
+### Presentation talking points (Step 11)
+
+- **"How good are the AI explanations?"** Scored with a 4-part rubric. A prompt change raised phishing explanations from 5.5 to 7.0 out of 8, and the remaining issues are caught by code, not trusted to the model.
+- **"What did you learn about small LLMs?"** They do well when there's evidence to explain and badly when there isn't: on a harmless newsletter, the 3B model invented a link and vouched for the sender. Prompting alone didn't fix it; a deterministic post-check did.
+- **"Why show a template instead of the AI answer?"** A plain, correct explanation is better than a fluent one that tells the user an email is legitimate.
 
 **Problems seen in real output (Step 8 runs and the Step 9 screenshots).**
 - *Over-confident verdicts:* "This email **is** a high-risk phishing attempt due to its high probability of being malicious" (`02b-credential-phish-high.png`, and phish-01 in Step 8). The plan says never claim an email is definitely malicious; the post-check only catches explicit phrases like "definitely malicious," so these get through.
