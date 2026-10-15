@@ -177,3 +177,21 @@ Override: a credential request plus any URL finding is at least Medium.
 - **"How do you stop the email from attacking the app itself?"** HTML is stripped on input, and everything from the email or the AI is displayed as plain text: no HTML rendering, no clickable links.
 - **"What does the user see if the AI is slow or down?"** A spinner while it works; if Ollama is down, the same risk level and evidence with a standard explanation and a note saying so.
 - **"Why is the UI so thin?"** Every decision is in tested Python modules; the UI only collects input and displays the report, so the core is tested without a browser.
+
+## Planned follow-up: prompt tweak (do in Step 11)
+
+**Status:** planned, not done. Do it inside Step 11's LLM rubric scoring, which already asks for "one weak example with what you changed" (plan Section 13).
+
+**Problems seen in real output (Step 8 runs and the Step 9 screenshots).**
+- *Over-confident verdicts:* "This email **is** a high-risk phishing attempt due to its high probability of being malicious" (`02b-credential-phish-high.png`, and phish-01 in Step 8). The plan says never claim an email is definitely malicious; the post-check only catches explicit phrases like "definitely malicious," so these get through.
+- *Code-style labels:* evidence uses `suspicious_language`, `payment_request` instead of readable names; the gift-card output repeats `suspicious_language` twice with vague reasons (`03-giftcard-high.png`).
+- *Empty evidence on Low emails:* the newsletter output lists "none: No suspicious indicators found" as evidence, and its limitations line ("No specific indicators were found…") isn't a real limitation (`04-newsletter-low.png`).
+
+**Planned fix.**
+1. System prompt rule: describe what the evidence *shows* ("shows several signs of phishing"); never state the email *is* phishing or malicious.
+2. `prompts.py`: send readable category names ("suspicious language") in the indicator list.
+3. System prompt rule: if no indicators were found, return an empty evidence list.
+4. System prompt rule: "limitations" must state one real limitation of the automated check (e.g. it can miss well-written phishing).
+5. Only if over-confident wording persists: add it to the safety post-check.
+
+**How to measure.** Score 3 explanations (rubric: faithful, clear, actionable, safe; 0–2 each) *before* the change, apply it, rerun the same 3 samples, score again, and record both in `docs/evaluation_results.md`. Commit the change separately, e.g. `fix(prompts): ask for evidence-based wording and readable labels`.
