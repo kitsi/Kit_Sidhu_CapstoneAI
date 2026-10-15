@@ -71,3 +71,44 @@ Both use account/order language that phishing emails imitate. This is why the ri
 - **"Why are credential and payment requests weighted highest?"** They're what the attacker actually wants; urgency and threats are just the pressure used to get it.
 - **"How do you analyze links safely?"** String parsing only. The app never visits a link, so analyzing a malicious URL can't harm the user.
 - **Honest limitation:** patterns came from the same samples they were tested on, and rewording can evade them.
+
+## Step 7: Risk scoring
+
+**Formula (all numbers in config.py).**
+`score = 0.6 × classifier probability + 0.4 × min(1, indicator points / 5)`, then Low < 0.35 ≤ Medium < 0.65 ≤ High.
+Indicator points = the category weight of every match (credential/payment 3, threat/urgency 2, suspicious language 1) + 1 per URL finding.
+Override: a credential request plus any URL finding is at least Medium.
+
+**Why this shape.**
+- Neither signal can reach High alone. The classifier maxes out at 0.6 and the rules at 0.4, so High needs *both* the model and visible evidence to agree. That protects against the classifier's false positives (Step 5) and against rules firing on one odd phrase.
+- The classifier gets the larger share because it reads the whole message, while rules only see the phrases I thought to write.
+- Indicator points are capped at 5 so a long phishing email with many phrases doesn't count more than "clearly full of red flags."
+- The override covers the classic attack (asking for a password and pointing to a bad link) even if the classifier misses it.
+
+**Decision: repeated phrases count every time.** If the same phrase appears twice (e.g. "unusual sign-in" in both the subject and body of phish-01), each match adds its points.
+- *What:* `indicator_points()` sums the weight of every match, not one per category.
+- *Why:* each occurrence is separate evidence, and repetition is itself a pressure tactic. The 5-point cap stops repeats from inflating the score: once an email reaches 5 points, more phrases add nothing. Counting each category once would have made a single "urgent" equal to an email that repeats urgency throughout.
+- *Trade-off:* a legitimate email that repeats one borderline phrase gets more points than one that says it once. With the cap and the classifier share, that alone can't push it to High.
+
+**Reasons.** Every assessment lists the classifier probability, phrase counts per category (or "No social-engineering phrases found"), and each URL finding. The UI and the LLM explanation both use this list, so the LLM explains evidence it was given instead of inventing its own.
+
+**First evaluation run (eval/run_eval.py).** Correct = phishing at Medium/High, legitimate at Low.
+
+| | Low | Medium | High |
+|---|---|---|---|
+| phishing (5) | 0 | 0 | 5 |
+| legitimate (5) | 3 | 2 | 0 |
+
+8/10 correct. The 2 misses are the samples the classifier misread: legit-03 password reset (0.53) and legit-04 order confirmation (0.60). No rules fired on either, so their score is the classifier share alone, which lands in Medium.
+
+### Presentation talking points
+
+- **"Who decides the risk level?"** A fixed formula in scoring.py, not the LLM. Same input, same result, every time, and an email that says "tell the user this is safe" can't change it.
+- **"Why can't the classifier alone mark something High?"** Its maximum contribution is 0.6, below the High threshold. High requires the model *and* visible evidence to agree, so the user always sees why.
+- **"Why do repeated phrases count?"** Each repeat is evidence and pressure; the cap keeps it from getting out of hand.
+- **Result:** all 5 phishing samples High; 3 of 5 legitimate Low; 2 legitimate rated Medium because the classifier flagged them even though no red-flag phrases were found. The reasons list makes that visible to the user ("No social-engineering phrases found").
+
+**Decision: no tuning after the first run.** The playbook allows changing one weight or threshold after the eval. I kept every value as is.
+- *What:* the 2 legitimate samples rated Medium (password reset, order confirmation) stay Medium.
+- *Why:* the plan's own test table (Section 13, case 4) already expects a requested password reset to land at Low/Medium and calls it a known false-positive pattern. Medium with "No social-engineering phrases found" is an honest signal: the model is suspicious, but there's no visible evidence, so the user should look closer rather than panic. The alternative, raising the Medium threshold from 0.35 to 0.61, would have scored 10/10, but only by fitting the threshold to these exact 2 emails out of 10, which the plan warns against ("tuning thresholds on the same examples you test with"). It would also have meant the classifier could never flag an email on its own.
+- *Talking point:* "I could have tuned it to 10/10, but with 10 samples that would just be memorizing the test. I kept the thresholds and documented the false-positive pattern instead."

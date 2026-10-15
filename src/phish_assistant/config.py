@@ -44,3 +44,16 @@ URL_SHORTENERS = frozenset({
 # Flag a host with more subdomains than this, not counting a leading "www.".
 # "accounts.example.com" has 1; "bank.secure-verify.example.com" has 2.
 MAX_SUBDOMAINS = 1
+
+# Risk scoring (scoring.py):
+#   score = CLASSIFIER_WEIGHT * phishing_probability
+#         + INDICATOR_WEIGHT * min(1, indicator_points / INDICATOR_POINTS_CAP)
+# Every indicator match adds its category weight (repeats count: each is
+# separate evidence, and the cap stops them inflating the score). Each URL
+# finding adds URL_FINDING_POINTS.
+CLASSIFIER_WEIGHT = 0.6
+INDICATOR_WEIGHT = 0.4
+INDICATOR_POINTS_CAP = 5
+URL_FINDING_POINTS = 1
+MEDIUM_THRESHOLD = 0.35  # score >= this is at least Medium
+HIGH_THRESHOLD = 0.65  # score >= this is High
